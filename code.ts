@@ -1,4 +1,4 @@
-// Contrast Harmony - WCAG 2.1 Contrast Audit Plugin
+// Halo - Contrast checker (WCAG 2.2)
 // Handles: text layers, vector icons, background detection, grouping, fix & sync
 
 type RGBColor = { r: number; g: number; b: number };
@@ -172,6 +172,15 @@ function isTextNode(node: SceneNode): node is TextNode {
   return node.type === 'TEXT';
 }
 
+/** For text grouping: same size, style, and color. Returns a string key for grouping. */
+function getTextGroupKey(node: TextNode): { fontSize: number; fontStyle: string } {
+  const fontSize = typeof node.fontSize === 'number' ? node.fontSize : 0;
+  const fontStyle = node.fontName !== figma.mixed
+    ? (node.fontName as FontName).style
+    : 'mixed';
+  return { fontSize, fontStyle };
+}
+
 function isVectorOrIcon(node: SceneNode): boolean {
   return node.type === 'VECTOR' || node.type === 'BOOLEAN_OPERATION' ||
     node.type === 'STAR' || node.type === 'LINE' || node.type === 'ELLIPSE' ||
@@ -179,14 +188,70 @@ function isVectorOrIcon(node: SceneNode): boolean {
 }
 
 /**
+ * First pass: find all node IDs that act as background for a text layer (group or visual stacking).
+ * Those vectors should not be reported as separate foreground items — we only check text vs that background.
+ */
+function collectBackgroundNodeIdsForText(
+  selection: readonly SceneNode[],
+  page: PageNode
+): Set<string> {
+  const usedAsBackground = new Set<string>();
+  let visited = 0;
+
+  function walk(n: SceneNode): void {
+    visited++;
+    if (visited > MAX_VISITS) return;
+    if (n.visible === false) { goChildren(n); return; }
+    if (isTextNode(n)) {
+      const fg = getForegroundColor(n);
+      if (fg) {
+        const bgNodeId = findBackgroundNodeId(n, page);
+        if (bgNodeId) usedAsBackground.add(bgNodeId);
+      }
+      goChildren(n);
+      return;
+    }
+    goChildren(n);
+    function goChildren(node: SceneNode): void {
+      if ('children' in node) {
+        for (const c of node.children) {
+          if (visited > MAX_VISITS) return;
+          walk(c as SceneNode);
+        }
+      }
+    }
+  }
+
+  for (const s of selection) {
+    if (visited > MAX_VISITS) break;
+    walk(s as SceneNode);
+  }
+  return usedAsBackground;
+}
+
+type CollectedItem = {
+  node: SceneNode;
+  fg: RGBColor;
+  bg: RGBColor;
+  isText: boolean;
+  isLarge: boolean;
+  fontSize?: number;
+  fontStyle?: string;
+};
+
+/**
  * Collect and process text/icons - fully synchronous (no async/setTimeout).
+ * Text-on-vector (group or visually stacked): report only one contrast pair (text fg vs vector bg).
+ * Vectors that are the background for text are skipped as standalone items.
+ * Text grouping: same size, style, and color (fg/bg) only.
  * Hard limits: MAX_VISITS nodes traversed, MAX_CANDIDATES collected.
  */
 function collectAndProcess(
   selection: readonly SceneNode[],
   page: PageNode
-): Array<{ node: SceneNode; fg: RGBColor; bg: RGBColor; isText: boolean; isLarge: boolean }> {
-  const items: Array<{ node: SceneNode; fg: RGBColor; bg: RGBColor; isText: boolean; isLarge: boolean }> = [];
+): CollectedItem[] {
+  const usedAsBackgroundNodeIds = collectBackgroundNodeIdsForText(selection, page);
+  const items: CollectedItem[] = [];
   let visited = 0;
 
   function walk(n: SceneNode): boolean {
@@ -199,11 +264,13 @@ function collectAndProcess(
       const fg = getForegroundColor(n);
       if (fg) {
         const bg = findBackgroundForNode(n, page);
-        items.push({ node: n, fg, bg, isText: true, isLarge: isLargeText(n) });
+        const { fontSize, fontStyle } = getTextGroupKey(n);
+        items.push({ node: n, fg, bg, isText: true, isLarge: isLargeText(n), fontSize, fontStyle });
       }
       return true;
     }
     if (isVectorOrIcon(n)) {
+      if (usedAsBackgroundNodeIds.has(n.id)) return true;
       const fg = getForegroundColor(n);
       if (fg) {
         const bg = findBackgroundForNode(n, page);
@@ -241,7 +308,7 @@ interface ContrastIssue {
 }
 
 /**
- * WCAG 2.1 Contrast Requirements:
+ * WCAG 2.2 Contrast Requirements:
  * - Normal Text (<18pt): AA = 4.5:1, AAA = 7:1
  * - Large Text (18pt+ or 14pt bold+): AA = 3:1, AAA = 4.5:1
  * - UI Components/Icons: AA = 3:1, AAA = N/A
@@ -256,13 +323,11 @@ function getContrastRequirements(isText: boolean, isLarge: boolean): { aa: numbe
   return { aa: 4.5, aaa: 7, type: 'normal-text' };
 }
 
-function buildIssuesAndPassed(
-  items: Array<{ node: SceneNode; fg: RGBColor; bg: RGBColor; isText: boolean; isLarge: boolean }>
-): { issues: ContrastIssue[]; passed: ContrastIssue[] } {
+function buildIssuesAndPassed(items: CollectedItem[]): { issues: ContrastIssue[]; passed: ContrastIssue[] } {
   const issuesMap = new Map<string, ContrastIssue>();
   const passedMap = new Map<string, ContrastIssue>();
 
-  for (const { node, fg, bg, isText, isLarge } of items) {
+  for (const { node, fg, bg, isText, isLarge, fontSize, fontStyle } of items) {
     const l1 = relativeLuminance(fg);
     const l2 = relativeLuminance(bg);
     const ratio = contrastRatio(l1, l2);
@@ -272,7 +337,9 @@ function buildIssuesAndPassed(
 
     const fgHex = rgbToHex(fg);
     const bgHex = rgbToHex(bg);
-    const key = `${fgHex}|${bgHex}|${isText}|${isLarge}`;
+    const key = isText
+      ? `${fgHex}|${bgHex}|${isText}|${isLarge}|${fontSize ?? ''}|${fontStyle ?? ''}`
+      : `${fgHex}|${bgHex}|${isText}|${isLarge}`;
     const entry: ContrastIssue = {
       foregroundHex: fgHex,
       backgroundHex: bgHex,
