@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; background: #F5F5F5; color: #333; }
+    h1 { font-size: 12px; font-weight: 600; margin: 0 0 12px 0; }
+    .header { padding: 16px; border-bottom: 1px solid #E6E6E6; background: #FFF; }
+    .scan-btn { width: 100%; padding: 10px 16px; background: #18A0FB; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .scan-btn:hover { opacity: 0.9; }
+    .scan-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .issues { padding: 16px; max-height: 400px; overflow-y: auto; }
+    .accordion { border: 1px solid #E6E6E6; border-radius: 4px; background: #FFF; margin-bottom: 8px; overflow: hidden; }
+    .accordion-header { width: 100%; text-align: left; padding: 12px; background: #FAFAFA; border: none; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.15s; }
+    .accordion-header:hover { background: #FAFAFA; }
+    .accordion-header.open { background: #FAFAFA; }
+    .accordion-arrow { display: inline-flex; transition: transform 0.2s; color: #999; }
+    .accordion-arrow svg { width: 12px; height: 12px; stroke: currentColor; }
+    .accordion-arrow.open { transform: rotate(90deg); }
+    .accordion-summary { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .level-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; padding: 4px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+    .level-badge.pass { background: #dcfce7; color: #166534; }
+    .level-badge.fail { background: #fee2e2; color: #991b1b; }
+    .ratio-display { font-weight: 500; font-size: 14px; }
+    .header-meta { display: flex; align-items: center; gap: 10px; }
+    .type-badge { font-size: 10px; font-weight: normal; color: #6b7280; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; }
+    .count-badge { font-size: 10px; font-weight: normal; color: #6b7280; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; }
+    .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background: #FAFAFA; }
+    .accordion-content.open { max-height: 500px; }
+    .accordion-body { padding: 16px; }
+    .color-row { display: flex; align-items: center; gap: 12px; }
+    .color-field { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .color-field label { font-size: 10px; color: #666; font-weight: 500; }
+    .color-field input[type="color"] { width: 72px; height: 40px; border: 1px solid #E6E6E6; border-radius: 4px; cursor: pointer; padding: 2px; }
+    .color-field input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+    .color-field input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
+    .color-label { font-size: 10px; color: #666; font-family: 'SF Mono', 'Monaco', monospace; }
+    .apply-btn { padding: 10px 16px; background: #18A0FB; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 500; white-space: nowrap; margin-left: auto; }
+    .apply-btn:hover { opacity: 0.9; }
+    .empty { text-align: center; color: #666; padding: 24px; }
+    .section-title { font-size: 11px; font-weight: 600; color: #374151; margin: 12px 0 8px 0; padding: 0 4px; display: flex; align-items: center; gap: 6px; }
+    .section-title .count { font-weight: normal; color: #6b7280; }
+    .passing-section { margin-bottom: 16px; }
+    .passing-card { border: 1px solid #E6E6E6; border-radius: 4px; background: #FFF; margin-bottom: 8px; padding: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; cursor: pointer; transition: background 0.15s, box-shadow 0.15s; }
+    .passing-card:hover { background: #F0FDF4; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .passing-card:active { background: #DCFCE7; }
+    .passing-swatches { display: flex; align-items: center; gap: 8px; }
+    .passing-swatch-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .passing-swatch { width: 36px; height: 36px; border-radius: 4px; border: 1px solid #E6E6E6; flex-shrink: 0; }
+    .passing-hex { font-size: 9px; font-family: 'SF Mono', Monaco, monospace; color: #6b7280; max-width: 44px; overflow: hidden; text-overflow: ellipsis; }
+    .passing-ratio { font-weight: 600; font-size: 13px; color: #166534; }
+    .passing-badges { display: flex; align-items: center; gap: 4px; }
+    .passing-meta { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 10px; color: #6b7280; }
+    .passing-empty-msg { font-size: 11px; color: #6b7280; padding: 8px 0; }
+    .summary-line { font-size: 11px; color: #6b7280; margin-bottom: 8px; padding: 0 2px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <button id="scan" class="scan-btn">Scan the frame</button>
+  </div>
+  <div class="issues" id="issues">
+    <div id="summary-line" class="summary-line" style="display: none;"></div>
+    <div class="section-title" id="all-section-title" style="display: none;">All scanned layers — change color</div>
+    <div id="all-list">
+      <div class="empty" id="empty-msg">Select layers and click Scan.</div>
+    </div>
+  </div>
+  <script>
+    const scanBtn = document.getElementById('scan');
+    const issuesEl = document.getElementById('issues');
+    const summaryLine = document.getElementById('summary-line');
+    const allSectionTitle = document.getElementById('all-section-title');
+    const allList = document.getElementById('all-list');
+
+    let issues = [];
+    let passed = [];
+    let all = [];
+    let openAccordions = new Set();
+    let hasScanned = false;
+
+    scanBtn.onclick = () => {
+      scanBtn.disabled = true;
+      scanBtn.textContent = 'Scanning…';
+      parent.postMessage({ pluginMessage: { type: 'scan' } }, '*');
+    };
+
+    function toggleAccordion(index) {
+      if (openAccordions.has(index)) {
+        openAccordions.delete(index);
+      } else {
+        openAccordions.add(index);
+      }
+      render();
+    }
+
+    function hexToRgb(hex) {
+      const m = hex.replace(/^#/, '').match(/^([0-9A-Fa-f]{6})$/);
+      if (!m) return null;
+      const n = parseInt(m[1], 16);
+      return { r: ((n >> 16) & 255) / 255, g: ((n >> 8) & 255) / 255, b: (n & 255) / 255 };
+    }
+
+    function relativeLuminance(rgb) {
+      const lin = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      const r = lin(rgb.r), g = lin(rgb.g), b = lin(rgb.b);
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    function contrastRatio(hex1, hex2) {
+      const rgb1 = hexToRgb(hex1), rgb2 = hexToRgb(hex2);
+      if (!rgb1 || !rgb2) return 0;
+      const l1 = relativeLuminance(rgb1), l2 = relativeLuminance(rgb2);
+      const lighter = Math.max(l1, l2), darker = Math.min(l1, l2);
+      return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    function updateAccordionPreview(issue, i) {
+      const fgPicker = document.getElementById(`fg-picker-${i}`);
+      const bgPicker = document.getElementById(`bg-picker-${i}`);
+      if (!fgPicker || !bgPicker) return;
+      const fg = fgPicker.value;
+      const bg = bgPicker.value;
+      const ratio = contrastRatio(fg, bg);
+      const passA = ratio >= 3;
+      const passAA = ratio >= issue.requiredAA;
+      const showAAA = issue.requiredAAA !== null;
+      const passAAA = showAAA ? ratio >= issue.requiredAAA : null;
+
+      const accordion = allList.querySelector('.accordion:nth-child(' + (i + 1) + ')');
+      if (!accordion) return;
+      const summary = accordion.querySelector('.accordion-summary');
+      if (!summary) return;
+
+      const ratioEl = summary.querySelector('.ratio-display');
+      const badges = summary.querySelectorAll('.level-badge');
+      if (ratioEl) ratioEl.textContent = ratio.toFixed(2) + ':1';
+      if (badges[0]) badges[0].className = 'level-badge ' + (passA ? 'pass' : 'fail');
+      if (badges[1]) badges[1].className = 'level-badge ' + (passAA ? 'pass' : 'fail');
+      if (showAAA && badges[2]) badges[2].className = 'level-badge ' + (passAAA ? 'pass' : 'fail');
+    }
+
+    function applyFix(issue, fgPickerId, bgPickerId) {
+      const fgPicker = document.getElementById(fgPickerId);
+      const bgPicker = document.getElementById(bgPickerId);
+      const fg = fgPicker.value.toUpperCase();
+      const bg = bgPicker.value.toUpperCase();
+      parent.postMessage({ pluginMessage: { type: 'apply-fix', issue, newFgHex: fg, newBgHex: bg } }, '*');
+      issue.foregroundHex = fg;
+      issue.backgroundHex = bg;
+    }
+
+    function render() {
+      if (!hasScanned || all.length === 0) {
+        summaryLine.style.display = 'none';
+        allSectionTitle.style.display = 'none';
+        allList.innerHTML = '<div class="empty" id="empty-msg">' + (hasScanned ? 'No text or vector layers with solid fills found.' : 'Select layers and click Scan.') + '</div>';
+        return;
+      }
+
+      summaryLine.style.display = 'block';
+      summaryLine.textContent = '\u2713 ' + passed.length + ' pass WCAG  \u2022  ' + issues.length + ' need fix';
+      allSectionTitle.style.display = 'block';
+      allSectionTitle.textContent = 'All scanned layers (' + all.length + ') \u2014 change color';
+
+      allList.innerHTML = all.map((item, i) => {
+        const isOpen = openAccordions.has(i);
+        const fgPickerId = 'fg-picker-' + i;
+        const bgPickerId = 'bg-picker-' + i;
+        const passA = item.ratio >= 3;
+        const aaStatus = item.passAA ? 'pass' : 'fail';
+        const showAAA = item.passAAA !== null;
+        const aaaStatus = item.passAAA ? 'pass' : 'fail';
+        const typeLabel = item.isText ? (item.isLargeText ? 'Large Text' : 'Normal Text') : 'Vector';
+        const nodeIdsStr = (item.nodeIds || []).join(',');
+        return '<div class="accordion" data-i="' + i + '" data-node-ids="' + nodeIdsStr + '">' +
+          '<button class="accordion-header ' + (isOpen ? 'open' : '') + '" data-i="' + i + '">' +
+          '<div class="accordion-summary">' +
+          '<span class="ratio-display">' + item.ratio.toFixed(2) + ':1</span>' +
+          '<span class="level-badge ' + (passA ? 'pass' : 'fail') + '" title="A: ' + (passA ? 'Pass' : 'Fail') + ' (3:1)">A</span>' +
+          '<span class="level-badge ' + aaStatus + '" title="AA: ' + (aaStatus === 'pass' ? 'Pass' : 'Fail') + ' (' + item.requiredAA + ':1)">AA</span>' +
+          (showAAA ? '<span class="level-badge ' + aaaStatus + '" title="AAA">AAA</span>' : '') +
+          '</div>' +
+          '<div class="header-meta">' +
+          '<span class="type-badge">' + typeLabel + '</span>' +
+          '<span class="count-badge" title="' + (item.nodeIds ? item.nodeIds.length : 0) + ' layer(s)">' + (item.nodeIds ? item.nodeIds.length : 0) + '</span>' +
+          '</div>' +
+          '<span class="accordion-arrow ' + (isOpen ? 'open' : '') + '"><svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg></span>' +
+          '</button>' +
+          '<div class="accordion-content ' + (isOpen ? 'open' : '') + '">' +
+          '<div class="accordion-body">' +
+          '<div class="color-row">' +
+          '<div class="color-field"><label>Foreground</label><input type="color" id="' + fgPickerId + '" value="' + (item.foregroundHex || '') + '" /><span class="color-label">' + (item.foregroundHex || '').toUpperCase() + '</span></div>' +
+          '<div class="color-field"><label>Background</label><input type="color" id="' + bgPickerId + '" value="' + (item.backgroundHex || '') + '" /><span class="color-label">' + (item.backgroundHex || '').toUpperCase() + '</span></div>' +
+          '<button class="apply-btn" data-apply="' + i + '">Apply changes</button>' +
+          '</div></div></div></div>';
+      }).join('');
+
+      var hoverTimeout = null;
+      var lastHoveredNodeIds = null;
+      allList.querySelectorAll('.accordion').forEach(function(el) {
+        var nodeIds = (el.dataset.nodeIds || '').split(',').filter(Boolean);
+        if (nodeIds.length === 0) return;
+        el.onmouseenter = function() {
+          if (hoverTimeout) clearTimeout(hoverTimeout);
+          hoverTimeout = setTimeout(function() {
+            if (JSON.stringify(lastHoveredNodeIds) !== JSON.stringify(nodeIds)) {
+              lastHoveredNodeIds = nodeIds;
+              parent.postMessage({ pluginMessage: { type: 'hover-issue', nodeIds: nodeIds } }, '*');
+            }
+            hoverTimeout = null;
+          }, 250);
+        };
+        el.onmouseleave = function() {
+          if (hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null; }
+          lastHoveredNodeIds = null;
+        };
+      });
+      allList.querySelectorAll('.accordion-header').forEach(function(el) {
+        el.onclick = function(e) {
+          e.stopPropagation();
+          toggleAccordion(parseInt(el.dataset.i || (el.closest && el.closest('.accordion') && el.closest('.accordion').dataset.i) || '0', 10));
+        };
+      });
+      allList.querySelectorAll('[data-apply]').forEach(function(el) {
+        el.onclick = function(e) {
+          e.stopPropagation();
+          var i = parseInt(el.dataset.apply, 10);
+          applyFix(all[i], 'fg-picker-' + i, 'bg-picker-' + i);
+        };
+      });
+
+      all.forEach(function(item, i) {
+        var fgPicker = document.getElementById('fg-picker-' + i);
+        var bgPicker = document.getElementById('bg-picker-' + i);
+        if (fgPicker && bgPicker) {
+          fgPicker.oninput = function() {
+            var label = fgPicker.nextElementSibling;
+            if (label) label.textContent = fgPicker.value.toUpperCase();
+            updateAccordionPreview(item, i);
+          };
+          bgPicker.oninput = function() {
+            var label = bgPicker.nextElementSibling;
+            if (label) label.textContent = bgPicker.value.toUpperCase();
+            updateAccordionPreview(item, i);
+          };
+        }
+      });
+    }
+
+    window.onmessage = (e) => {
+      const msg = e.data?.pluginMessage;
+      if (!msg) return;
+      if (msg.type === 'scan-result') {
+        issues = msg.issues || [];
+        passed = msg.passed || [];
+        all = msg.all || (issues.concat(passed));
+        hasScanned = true;
+        openAccordions.clear();
+        scanBtn.disabled = false;
+        scanBtn.textContent = 'Scan the frame';
+        render();
+      }
+      if (msg.type === 'fix-applied') {
+        // Could re-scan or just show success
+      }
+    };
+  </script>
+</body>
+</html>
