@@ -4,39 +4,40 @@
   <meta charset="UTF-8">
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; background: #FFF; color: #333; }
+    html, body { height: 100%; margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; background: #FFF; color: #333; }
+    body { display: flex; flex-direction: column; }
     h1 { font-size: 12px; font-weight: 600; margin: 0 0 12px 0; }
     .header { padding: 16px; border-bottom: 1px solid #E6E6E6; background: #FFF; }
     .scan-btn { width: 100%; padding: 10px 16px; background: #635FE8; color: white; border: none; border-radius: 9999px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .scan-btn:hover { opacity: 0.9; }
     .scan-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .issues { padding: 16px; max-height: 400px; overflow-y: auto; }
-.accordion { border: 1px solid #E6E6E6; border-radius: 4px; background: #FFF; margin-bottom: 4px; overflow: hidden; transition: border-color 0.15s; }
-.accordion:hover { border-color: #D1D5DB; }
-.accordion-header { width: 100%; text-align: left; padding: 12px; background: #FAFAFA; border: none; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.15s; }
-.accordion-header:hover { background: #F3F4F6; }
-    .accordion-header.open { background: #FAFAFA; }
+    .issues { flex: 1; min-height: 0; padding: 16px; overflow-y: auto; background: linear-gradient(to bottom, #ffffff 0%, #fcfbff 10%, #f8f7fe 25%, #f5f4fe 45%, #f3f2fe 65%, #f2f1fd 85%, #f0f0fc 100%); }
+.accordion { border: 1px solid transparent; border-radius: 8px; margin-bottom: 4px; overflow: hidden; background: linear-gradient(#FFF, #FFF) padding-box, linear-gradient(60deg, #F3F4F6, #E5E7EB, #F3F4F6, #F3F4F6) border-box; background-origin: padding-box, border-box; background-clip: padding-box, border-box; transition: opacity 0.15s; }
+.accordion:hover { background: linear-gradient(#FFF, #FFF) padding-box, linear-gradient(60deg, #E5E7EB, #D1D5DB, #E5E7EB, #F3F4F6) border-box; background-origin: padding-box, border-box; background-clip: padding-box, border-box; }
+.accordion-header { width: 100%; text-align: left; padding: 12px; background: #FFF; border: none; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.15s; }
+.accordion-header:hover { background: #F9FAFB; }
+    .accordion-header.open { background: #FFF; }
     .accordion-arrow { display: inline-flex; transition: transform 0.2s; color: #999; }
     .accordion-arrow svg { width: 12px; height: 12px; stroke: currentColor; }
     .accordion-arrow.open { transform: rotate(90deg); }
     .accordion-summary { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-    .level-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; padding: 4px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+    .level-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; padding: 4px 6px; border-radius: 4px; font-size: 11px; font-weight: 500; }
     .level-badge.pass { background: #dcfce7; color: #166534; }
     .level-badge.fail { background: #fee2e2; color: #991b1b; }
-    .ratio-display { font-weight: 500; font-size: 14px; }
+    .ratio-display { font-weight: 500; font-size: 14px; color: #6b7280; }
     .header-meta { display: flex; align-items: center; gap: 10px; }
-    .type-badge { font-size: 10px; font-weight: normal; color: #6b7280; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; }
-    .count-badge { font-size: 10px; font-weight: normal; color: #6b7280; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; }
-    .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background: #FAFAFA; }
+    .type-badge { font-size: 11px; font-weight: normal; color: #6b7280; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; }
+    .count-badge { font-size: 11px; font-weight: normal; color: #6b7280; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; }
+    .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background: #FFF; }
     .accordion-content.open { max-height: 500px; }
     .accordion-body { padding: 16px; }
     .color-row { display: flex; align-items: center; gap: 12px; }
-    .color-field { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-    .color-field label { font-size: 10px; color: #666; font-weight: 500; }
+    .color-field { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+    .color-field label { font-size: 10px; color: #666; font-weight: 500; text-align: left; }
     .color-field input[type="color"] { width: 72px; height: 40px; border: 1px solid #E6E6E6; border-radius: 4px; cursor: pointer; padding: 2px; }
     .color-field input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
     .color-field input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
-    .color-label { font-size: 10px; color: #666; font-family: 'SF Mono', 'Monaco', monospace; }
+    .color-label { font-size: 10px; color: #666; font-family: 'SF Mono', 'Monaco', monospace; text-align: left; }
 .apply-btn { padding: 10px 16px; background: #FFF; color: #333; border: 1px solid #BDBDBD; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 500; white-space: nowrap; margin-left: auto; }
 .apply-btn:hover { background: #F5F5F5; border-color: #9E9E9E; }
     .empty { text-align: center; color: #666; padding: 24px; }
@@ -54,7 +55,13 @@
     .passing-badges { display: flex; align-items: center; gap: 4px; }
     .passing-meta { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 10px; color: #6b7280; }
     .passing-empty-msg { font-size: 11px; color: #6b7280; padding: 8px 0; }
-    .summary-line { font-size: 11px; color: #6b7280; margin-bottom: 8px; padding: 0 2px; }
+    .summary-line { margin-bottom: 8px; }
+    .summary-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .summary-layers { font-size: 11px; font-weight: 600; color: #374151; margin: 0 0 8px 0; }
+    .summary-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 500; border: none; }
+.chip-pass { background: #dcfce7; color: #166534; }
+.chip-fix { background: #fee2e2; color: #991b1b; }
   </style>
 </head>
 <body>
@@ -63,16 +70,14 @@
   </div>
   <div class="issues" id="issues">
     <div id="summary-line" class="summary-line" style="display: none;"></div>
-    <div class="section-title" id="all-section-title" style="display: none;">All scanned layers — change color</div>
     <div id="all-list">
-      <div class="empty" id="empty-msg">Select layers and click Scan.</div>
+      <div class="empty" id="empty-msg">Select the frame and click "Scan the frame" button</div>
     </div>
   </div>
   <script>
     const scanBtn = document.getElementById('scan');
     const issuesEl = document.getElementById('issues');
     const summaryLine = document.getElementById('summary-line');
-    const allSectionTitle = document.getElementById('all-section-title');
     const allList = document.getElementById('all-list');
 
     let issues = [];
@@ -153,16 +158,18 @@
     function render() {
       if (!hasScanned || all.length === 0) {
         summaryLine.style.display = 'none';
-        allSectionTitle.style.display = 'none';
-        allList.innerHTML = '<div class="empty" id="empty-msg">' + (hasScanned ? 'No text or vector layers with solid fills found.' : 'Select layers and click Scan.') + '</div>';
+        allList.innerHTML = '<div class="empty" id="empty-msg">' + (hasScanned ? 'No text or vector layers with solid fills found.' : 'Select the frame and click "Scan the frame" button') + '</div>';
         return;
       }
 
       summaryLine.style.display = 'block';
-      summaryLine.textContent = '\u2713 ' + passed.length + ' pass WCAG 2.2  \u2022  ' + issues.length + ' need fix';
-      allSectionTitle.style.display = 'block';
-      allSectionTitle.textContent = 'All scanned layers (' + all.length + ') \u2014 change color';
-
+      var totalLayers = all.reduce(function(sum, item) { return sum + (item.nodeIds ? item.nodeIds.length : 0); }, 0);
+      summaryLine.innerHTML = '<div class="summary-row">' +
+        '<span class="summary-layers">' + totalLayers + ' layers scanned</span>' +
+        '<div class="summary-chips">' +
+        '<span class="chip chip-pass">\u2713 ' + passed.length + ' pass</span>' +
+        '<span class="chip chip-fix">' + issues.length + ' need fix</span>' +
+        '</div></div>';
       allList.innerHTML = all.map((item, i) => {
         const isOpen = openAccordions.has(i);
         const fgPickerId = 'fg-picker-' + i;
