@@ -4,16 +4,17 @@
   <meta charset="UTF-8">
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; background: #F5F5F5; color: #333; }
+    body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; background: #FFF; color: #333; }
     h1 { font-size: 12px; font-weight: 600; margin: 0 0 12px 0; }
     .header { padding: 16px; border-bottom: 1px solid #E6E6E6; background: #FFF; }
-    .scan-btn { width: 100%; padding: 10px 16px; background: #5B21B6; color: white; border: none; border-radius: 9999px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .scan-btn { width: 100%; padding: 10px 16px; background: #635FE8; color: white; border: none; border-radius: 9999px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .scan-btn:hover { opacity: 0.9; }
     .scan-btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .issues { padding: 16px; max-height: 400px; overflow-y: auto; }
-    .accordion { border: 1px solid #E6E6E6; border-radius: 4px; background: #FFF; margin-bottom: 8px; overflow: hidden; }
-    .accordion-header { width: 100%; text-align: left; padding: 12px; background: #FAFAFA; border: none; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.15s; }
-    .accordion-header:hover { background: #FAFAFA; }
+.accordion { border: 1px solid #E6E6E6; border-radius: 4px; background: #FFF; margin-bottom: 4px; overflow: hidden; transition: border-color 0.15s; }
+.accordion:hover { border-color: #D1D5DB; }
+.accordion-header { width: 100%; text-align: left; padding: 12px; background: #FAFAFA; border: none; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.15s; }
+.accordion-header:hover { background: #F3F4F6; }
     .accordion-header.open { background: #FAFAFA; }
     .accordion-arrow { display: inline-flex; transition: transform 0.2s; color: #999; }
     .accordion-arrow svg { width: 12px; height: 12px; stroke: currentColor; }
@@ -254,6 +255,7 @@
         all = msg.all || (issues.concat(passed));
         hasScanned = true;
         openAccordions.clear();
+        if (all.length > 0) openAccordions.add(0);
         scanBtn.disabled = false;
         scanBtn.textContent = 'Scan the frame';
         render();
